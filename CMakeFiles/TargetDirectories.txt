@@ -1,0 +1,3 @@
+/home/stupi/gitproj/opencv-cameramotion/CMakeFiles/motion.dir
+/home/stupi/gitproj/opencv-cameramotion/CMakeFiles/edit_cache.dir
+/home/stupi/gitproj/opencv-cameramotion/CMakeFiles/rebuild_cache.dir
