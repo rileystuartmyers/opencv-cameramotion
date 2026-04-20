@@ -9,7 +9,12 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-const unsigned int PIN_HORIZONTAL = 14;
+const unsigned int HORIZONTAL_PIN = 14;
+const char* WINDOW_NAME = "Video Player";
+const char* CASCADE_FILE_PATH = "resources/haarcascade_frontalface_default.xml";
+const unsigned short int RECT_BORDER_THICKNESS = 2;
+const unsigned int FRAME_PAUSE_TIME_MS = 100;
+bool USE_GREYSCALE_IMAGE = true;
 
 void TestServoRange(const unsigned int PIN) {
 
@@ -106,78 +111,117 @@ class Servo {
 
 };
 
+void VideoCapture_CheckForFailure(const cv::VideoCapture& cap) {
+    if (!cap.isOpened()) {
+        throw std::runtime_error("No video stream detected.");
+    }
+}
+
+void ImageCapture_CheckForFailure(const cv::Mat& image) {
+    if (image.empty()) {
+        throw std::runtime_error("Image empty. Exiting...");
+    }
+}
+
+void LoadCascade(cv::CascadeClassifier& faceCascade, const char* FilePath) {
+    if (!faceCascade.load(FilePath)) {
+        throw std::runtime_error("Failed to load cascade file. Exiting...");
+    }
+}
+
+void SetFullscreen(const char* Window_Name) {
+    std::cout << "set to fullscreen" << std::endl;
+    cv::setWindowProperty(Window_Name, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
+}
+
+void SetColor() {
+    USE_GREYSCALE_IMAGE = false;
+}
+
+void ArgumentCheck(int argc, char** argv, const char* Window_Name) {
+
+    for (int i = 1; i < argc; ++i) {
+
+        if (argv[i] == "-f" || argv[i] == "-fullscreen") {
+            SetFullscreen(Window_Name);
+        }
+
+        if (argv[i] == "-c" || argv[i] == "-color") {
+            SetColor();
+        }
+
+    }
+
+};
+
 int main(int argc, char** argv) {
 
-	int HORIZONTAL_PIN = 14;
 	Servo horizontal_servo(HORIZONTAL_PIN);
 
-	cv::Mat color_image;
-	cv::Mat grey_image;
+    cv::namedWindow(WINDOW_NAME, cv::WINDOW_NORMAL);
+	cv::Mat image;
+	std::vector<cv::Rect> faces;
+	
 	cv::VideoCapture cap(0, cv::CAP_V4L2);
+	VideoCapture_CheckForFailure(cap);
 	cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
+	
+	cv::CascadeClassifier faceCascade;
+    LoadCascadeFromFile(faceCascade, CASCADE_FILE_PATH);
+	
 
-	if (!cap.isOpened()) {
+    ArgumentCheck(argc, argv, WINDOW_NAME);
 
-		std::cout << "No video stream detected." << std::endl;
-		return -1;
 
-	}
+	cap.read(image);
 
-	cap.read(color_image);
-
-	float centerMargin = 0.10;
-	int imageWidth = color_image.cols;
-	int imageHeight = color_image.rows;
+	float centerMargin = 0.10f;
+	int imageWidth = image.cols;
+	int imageHeight = image.rows;
 
 	int imageCenterX = imageWidth / 2;
 	int centerXMin = imageCenterX - (imageWidth * centerMargin);
 	int centerXMax = imageCenterX + (imageWidth * centerMargin);
 
-	cv::CascadeClassifier faceCascade;
-	faceCascade.load("resources/haarcascade_frontalface_default.xml");
-	std::vector<cv::Rect> faces;
+	int faceCenterX;
 
 	while (true) {
 
-		cap.read(color_image);
+		faces.clear();
+		cap.read(image);
 
-		if (color_image.empty()) {
+		if (image.empty()) {
 
 			std::cerr << "image empty..." << std::endl;
 			break;
 
 		}
 
-		cv::cvtColor(color_image, grey_image, cv::COLOR_BGR2GRAY);
+        if (USE_GREYSCALE_IMAGE == true) {
+            cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
+        }
 
-		faces.clear();
-		faceCascade.detectMultiScale(grey_image, faces, 1.1, 10);
+		faceCascade.detectMultiScale(image, faces, 1.1, 10);
 
 		if (faces.size() != 0) {
 
-			int faceCenterX = ((faces[0].br().x + faces[0].tl().x) / 2);
+			faceCenterX = ((faces[0].br().x + faces[0].tl().x) / 2);
 
 			if (faceCenterX > centerXMax) {
-
 				horizontal_servo.move("LEFT");
 
 			} else if (faceCenterX < centerXMin) {
-
 				horizontal_servo.move("RIGHT");
 
 			} else {
-
 				horizontal_servo.stop();
-
 			}
 
 		} else {
-
 			horizontal_servo.stop();
-
 		}
 
-		std::chrono::milliseconds timespan(100);
+		std::chrono::milliseconds timespan(FRAME_PAUSE_TIME_MS);
 
 	}
 
