@@ -197,6 +197,8 @@ int main(int argc, char** argv) {
 
 		}
 
+		// cv::resize(image, image, cv::Size(), 0.5, 0.5) ***optimization done by reducing image size/quality
+		
         if (USE_GREYSCALE_IMAGE == true) {
             cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
         }
@@ -206,6 +208,7 @@ int main(int argc, char** argv) {
 		if (faces.size() != 0) {
 
 			faceCenterX = ((faces[0].br().x + faces[0].tl().x) / 2);
+			// faceCenterX = ((faces[0].br().x + faces[0].tl().x) / 2) * 2; ***follow-up correction for calculations by previous optimization
 
 			if (faceCenterX > centerXMax) {
 				horizontal_servo.move("LEFT");
@@ -222,7 +225,7 @@ int main(int argc, char** argv) {
 		}
 
 		std::chrono::milliseconds timespan(FRAME_PAUSE_TIME_MS);
-
+		cv::waitKey(1);
 	}
 
 	gpioTerminate();
